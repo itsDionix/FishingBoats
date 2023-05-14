@@ -33,11 +33,11 @@ BirthRateSpline = spi.PchipInterpolator(FxData,FyData)
 u = np.linspace(0, 1, 1001)
 uper = u
 # plt.plot(u*100, FishGeneratedInterp(u), label="Linear interpolation")
-plt.plot(uper, BirthRateSpline(u), label="Spline interpolation", c="C0")
+plt.plot(uper, BirthRateSpline(u), label="PCHIP interpolation", c="C0")
 plt.plot(uper,BirthRateSimple(u), label="$7.71*x^3(1-x)^2$", c="C1")
 plt.plot(uper,BirthRateSugested(u), label="$1.6*x^2(1-x)$",c="C2")
 plt.xlabel("Fish Population [Normalized Fish]")
-plt.ylabel("Fish birthrate [Normalized Fish per Year]")
+plt.ylabel("Population Change Rate [Normalized Fish per Year]")
 plt.legend()
 plt.grid()
 plt.show(block=False)
@@ -61,7 +61,7 @@ u = np.linspace(0, 1, 1001)
 uper = u
 plt.figure()
 # plt.plot(u*100, ShipEffInterp(u),label="Linear interpolation")
-plt.plot(uper, ShipEffSpline(u),label="Spline interpolation", c="C0")
+plt.plot(uper, ShipEffSpline(u),label="PCHIP interpolation", c="C0")
 plt.plot(uper,ShipEffSugested(u), label="$0.0156*x/(0.203+x)$", c="C1")
 plt.xlabel("Fish Population [Normalized Fish]")
 plt.ylabel("Ship Effectiveness [Normalized Fish per Year per Ship]")
@@ -106,25 +106,70 @@ def du(u, y):  # Must receive t, u for solve_ivp
         return chosenBR(u) - chosenSE(u)*y
         
 u = np.linspace(-1e-2, 1.01, 1001)
-y = np.linspace(1,30, 101)
-Y, U = np.meshgrid(y,u)
+y = np.linspace(1,30, 30*2+1)
+U, Y = np.meshgrid(u, y)
 Z = [du(u,y) for u,y in zip(U.ravel(), Y.ravel())]
 Z = np.array(Z).reshape(Y.shape)
 plt.figure()
-cs = plt.contourf(Y, U, Z, levels=0,
+cs = plt.contourf(U, Y, Z, levels=0,
     colors=['#ff8080', '#08ff08'], extend='both')   
-cs = plt.contour(Y, U, Z, levels=0, colors='black', linewidths=5) 
+cs = plt.contour(U, Y, Z, levels=0, colors='black', linewidths=5) 
 plt.scatter([],[], label="Growing population", c='#08ff08')       
 plt.scatter([],[], label="Shrinking population", c='#ff8080') 
 plt.plot([],[], c='black', label="Equilibrium")
 plt.legend()      
-plt.xlabel("Ships")
-plt.ylabel("Fish population [Normalized Fish]")
+plt.ylabel("Ships")
+plt.xlabel("Fish population [Normalized Fish]")
 plt.title("Equilibrium points")
-plt.ylim([0, 1])
+plt.xlim([0, 1])
+plt.grid()
+plt.show(block=False)
+
+
+## Calculate equilibrium points
+def dx(u, y, k , c):  # Must receive t, u for solve_ivp
+        du = chosenBR(u) - chosenSE(u)*y
+        dy = uMax*k*y*(chosenSE(u) - c/uMax)
+        if y > 0:
+            return np.array([du, dy])
+        else:
+             return np.array([du, max(0, dy)])
+
+k = 0.7
+c = 20
+Nu = 1001
+Ny = 101
+u = np.linspace(-1e-2, 1.01, Nu)
+y = np.linspace(1,40, Ny)
+U,Y = np.meshgrid(u,y)
+Z = [tuple(dx(u,y, k, c)) for u,y in zip(U.ravel(), Y.ravel())]
+du = [z[0] for z in Z]
+dy = [z[1] for z in Z]
+du = np.array(du).reshape(Y.shape)
+dy = np.array(dy ).reshape(Y.shape)
+
+plt.figure()
+# cs = plt.contourf(Y, U, Z, levels=0,
+#     colors=['#ff8080', '#08ff08'], extend='both')   
+cs = plt.contour(U,Y, du, levels=0, colors='black', linewidths=5) 
+cs = plt.contour(U,Y, dy, levels=0, colors='black', linestyles="dashed", linewidths=5) 
+# plt.scatter([],[], label="Growing population", c='#08ff08')       
+# plt.scatter([],[], label="Shrinking population", c='#ff8080') 
+
+plt.plot([],[], c='black', label="$\dot{x}=0$")
+plt.plot([],[], c='black', linestyle="--",label="$\dot{y}=0$")
+plt.streamplot(U, Y, du, dy )
+plt.legend()      
+plt.ylabel("Ships")
+plt.xlabel("Fish population [Normalized Fish]")
+plt.title("Equilibrium points")
+plt.xlim([0, 1])
 plt.grid()
 plt.legend()
 plt.show(block=False)
+
+
+
 
 
 
